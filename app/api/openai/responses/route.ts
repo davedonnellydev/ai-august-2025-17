@@ -51,7 +51,6 @@ export async function POST(request: NextRequest) {
     // Environment validation
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.error('OpenAI API key not configured');
       return NextResponse.json(
         { error: 'Translation service temporarily unavailable' },
         { status: 500 }

@@ -46,7 +46,6 @@ export function Welcome() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.log(errorData);
         throw new Error(errorData.error || 'API call failed');
       }
 
@@ -56,7 +55,6 @@ export function Welcome() {
       // Update remaining requests after successful translation
       setRemainingRequests(ClientRateLimiter.getRemainingRequests());
     } catch (err) {
-      console.error('API error:', err);
       setError(err instanceof Error ? err.message : 'API failed');
     } finally {
       setIsLoading(false);
