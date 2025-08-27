@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const questions = await generateQuestions(parsed.data);
+    const questionSet = await generateQuestions(parsed.data);
 
     const remaining = ServerRateLimiter.getRemaining(ip);
     const init = withRateLimitHeaders(undefined, {
@@ -69,7 +69,10 @@ export async function POST(request: NextRequest) {
       resetMs: STORAGE_WINDOW_MS,
     });
 
-    return NextResponse.json({ questions, remainingRequests: remaining }, init);
+    return NextResponse.json(
+      { questionSet, remainingRequests: remaining },
+      init
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Failed to generate questions';

@@ -71,7 +71,8 @@ export function JobForm() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to generate questions');
       }
-      const data: { questions: Question[] } = await res.json();
+      const data: { questionSet: { questions: Question[] } } = await res.json();
+      console.log(data);
       const session: Session = {
         id:
           typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -79,7 +80,7 @@ export function JobForm() {
             : Math.random().toString(36).slice(2),
         job,
         createdAt: new Date().toISOString(),
-        questions: data.questions || [],
+        questions: data.questionSet.questions || [],
         attempts: [],
       };
       saveSession(session);
