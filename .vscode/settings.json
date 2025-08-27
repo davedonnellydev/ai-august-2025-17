@@ -1,0 +1,13 @@
+{
+    "files.trimTrailingWhitespace": false,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": false,
+    "[markdown]": {
+      "files.trimTrailingWhitespace": false,
+      "editor.formatOnSave": true,
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "prettier.documentSelectors": ["**/*.md"],
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
