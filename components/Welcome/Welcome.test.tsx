@@ -32,7 +32,9 @@ describe('Welcome component', () => {
 
   it('displays remaining requests count', () => {
     render(<Welcome />);
-    expect(screen.getByText(/You have \d+ questions remaining/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/You have \d+ questions remaining/)
+    ).toBeInTheDocument();
   });
 
   it('allows user to type in input field', async () => {
@@ -52,7 +54,9 @@ describe('Welcome component', () => {
     const submitButton = screen.getByText('Ask Question');
     await user.click(submitButton);
 
-    expect(screen.getByText('Error: Please enter some text to translate')).toBeInTheDocument();
+    expect(
+      screen.getByText('Error: Please enter some text to translate')
+    ).toBeInTheDocument();
   });
 
   it('resets form when reset button is clicked', async () => {

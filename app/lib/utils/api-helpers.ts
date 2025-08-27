@@ -2,7 +2,10 @@ import { MAX_REQUESTS, STORAGE_WINDOW_MS } from '@/app/config/constants';
 
 // Cache implementation for API responses
 class ApiCache {
-  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+  private cache = new Map<
+    string,
+    { data: any; timestamp: number; ttl: number }
+  >();
 
   set(key: string, data: any, ttl: number = 300000): void {
     this.cache.set(key, {
@@ -121,7 +124,10 @@ export function throttle<T extends (...args: any[]) => any>(
 // Input Validator
 
 export class InputValidator {
-  static validateText(text: string, max_text_length: number): { isValid: boolean; error?: string } {
+  static validateText(
+    text: string,
+    max_text_length: number
+  ): { isValid: boolean; error?: string } {
     if (!text || text.trim().length === 0) {
       return { isValid: false, error: 'Please enter some text to translate' };
     }
@@ -228,7 +234,9 @@ setInterval(() => ServerRateLimiter.cleanup(), 5 * 60 * 1000);
 export class ClientRateLimiter {
   static checkLimit(): boolean {
     const now = Date.now();
-    const requests = JSON.parse(localStorage.getItem('translation_requests') || '[]');
+    const requests = JSON.parse(
+      localStorage.getItem('translation_requests') || '[]'
+    );
 
     // Remove old requests outside the window
     const validRequests = requests.filter(
@@ -248,7 +256,9 @@ export class ClientRateLimiter {
 
   static getRemainingRequests(): number {
     const now = Date.now();
-    const requests = JSON.parse(localStorage.getItem('translation_requests') || '[]');
+    const requests = JSON.parse(
+      localStorage.getItem('translation_requests') || '[]'
+    );
     const validRequests = requests.filter(
       (timestamp: number) => now - timestamp < STORAGE_WINDOW_MS
     );

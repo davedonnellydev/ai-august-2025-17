@@ -7,7 +7,9 @@ export async function POST(request: NextRequest) {
   try {
     // Get client IP
     const ip =
-      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+      request.headers.get('x-forwarded-for') ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
 
     // Server-side rate limiting
     if (!ServerRateLimiter.checkLimit(ip)) {
@@ -22,7 +24,10 @@ export async function POST(request: NextRequest) {
     // Enhanced validation
     const textValidation = InputValidator.validateText(input, 2000);
     if (!textValidation.isValid) {
-      return NextResponse.json({ error: textValidation.error }, { status: 400 });
+      return NextResponse.json(
+        { error: textValidation.error },
+        { status: 400 }
+      );
     }
 
     // Environment validation
@@ -78,7 +83,8 @@ export async function POST(request: NextRequest) {
       remainingRequests: ServerRateLimiter.getRemaining(ip),
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'OpenAI failed';
+    const errorMessage =
+      error instanceof Error ? error.message : 'OpenAI failed';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

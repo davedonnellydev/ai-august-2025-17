@@ -73,7 +73,12 @@ export function Welcome() {
     <>
       <Title className={classes.title} ta="center" mt={100}>
         Welcome to your{' '}
-        <Text inherit variant="gradient" component="span" gradient={{ from: 'pink', to: 'yellow' }}>
+        <Text
+          inherit
+          variant="gradient"
+          component="span"
+          gradient={{ from: 'pink', to: 'yellow' }}
+        >
           Starter
         </Text>
       </Title>
@@ -88,7 +93,12 @@ export function Welcome() {
           placeholder="How big is the earth?"
         />
 
-        <Button variant="filled" color="cyan" onClick={() => handleRequest()} loading={isLoading}>
+        <Button
+          variant="filled"
+          color="cyan"
+          onClick={() => handleRequest()}
+          loading={isLoading}
+        >
           Ask Question
         </Button>
         <Button variant="light" color="cyan" onClick={() => handleReset()}>

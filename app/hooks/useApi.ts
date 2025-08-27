@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiCache, generateCacheKey, retryRequest } from '../lib/utils/api-helpers';
+import {
+  apiCache,
+  generateCacheKey,
+  retryRequest,
+} from '../lib/utils/api-helpers';
 
 interface UseApiOptions {
   endpoint: string;
@@ -103,7 +107,17 @@ export function useApi<T>({
       setLoading(false);
       abortControllerRef.current = null;
     }
-  }, [endpoint, method, body, headers, enabled, cache, cacheTTL, retries, retryDelay]);
+  }, [
+    endpoint,
+    method,
+    body,
+    headers,
+    enabled,
+    cache,
+    cacheTTL,
+    retries,
+    retryDelay,
+  ]);
 
   const mutate = useCallback(
     (newData: T) => {
