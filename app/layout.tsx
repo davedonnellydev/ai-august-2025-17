@@ -10,7 +10,8 @@ import { theme } from '../theme';
 
 export const metadata = {
   title: 'AI Interview Coach',
-  description: 'An AI-powered Interview Coach app built for AIAugust App a Day Challenge',
+  description:
+    'An AI-powered Interview Coach app built for AIAugust App a Day Challenge',
 };
 
 export default function RootLayout({ children }: { children: any }) {

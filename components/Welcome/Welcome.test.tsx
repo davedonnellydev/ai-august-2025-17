@@ -2,7 +2,7 @@ import { render, screen, userEvent } from '@/test-utils';
 import { Welcome } from './Welcome';
 
 // Mock the ClientRateLimiter
-jest.mock('../../app/lib/utils/api-helpers', () => ({
+jest.mock('../../lib/utils/api-helpers.ts', () => ({
   ClientRateLimiter: {
     getRemainingRequests: jest.fn(() => 10),
     checkLimit: jest.fn(() => true),
