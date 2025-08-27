@@ -59,12 +59,14 @@ describe('/api/assess-answer POST', () => {
     expect(data.error).toBe('Invalid request body');
   });
 
-  test('returns 429 when rate limited', async () => {
+  test('ignores rate limiting and returns 200 even if limiter denies', async () => {
     jest.spyOn(helpers.ServerRateLimiter, 'checkLimit').mockReturnValue(false);
     const res = await POST(
       makeRequest({ job: baseJob, question: baseQuestion, answerText: 'A' })
     );
-    expect(res.status).toBe(429);
+    expect(res.status).toBe(200);
+    const headers = (res as any).headers;
+    expect(headers.get('X-RateLimit-Limit')).toBeTruthy();
   });
 
   test('returns 200 and feedback on success', async () => {

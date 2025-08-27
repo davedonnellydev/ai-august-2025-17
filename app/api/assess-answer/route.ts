@@ -61,27 +61,6 @@ export async function POST(request: NextRequest) {
       request.headers.get('x-real-ip') ||
       'unknown';
 
-    if (!ServerRateLimiter.checkLimit(ip)) {
-      const remaining = ServerRateLimiter.getRemaining(ip);
-      const init = withRateLimitHeaders(
-        {
-          status: 429,
-          headers: {
-            'Retry-After': String(Math.ceil(STORAGE_WINDOW_MS / 1000)),
-          },
-        },
-        {
-          remaining,
-          limit: MAX_REQUESTS,
-          resetMs: STORAGE_WINDOW_MS,
-        }
-      );
-      return NextResponse.json(
-        { error: 'Rate limit exceeded. Please try again later.' },
-        init
-      );
-    }
-
     const body = await request.json();
     const parsed = AssessBodySchema.safeParse(body);
     if (!parsed.success) {
@@ -93,6 +72,8 @@ export async function POST(request: NextRequest) {
 
     const feedback = await assessAnswer(parsed.data);
 
+    // This endpoint is not rate limited; we still surface headers for consistency
+    // and to power the UI footer. Remaining reflects only generate-questions usage.
     const remaining = ServerRateLimiter.getRemaining(ip);
     const init = withRateLimitHeaders(undefined, {
       remaining,

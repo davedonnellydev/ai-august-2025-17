@@ -14,7 +14,11 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { JobConfig, Session, Question } from '@/lib/types';
-import { saveSession, setLastSessionId } from '@/lib/storage';
+import {
+  saveSession,
+  setLastSessionId,
+  setRemainingRequests,
+} from '@/lib/storage';
 
 type FormState = {
   role: string;
@@ -65,7 +69,10 @@ export function JobForm() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to generate questions');
       }
-      const data: { questionSet: { questions: Question[] } } = await res.json();
+      const data: {
+        questionSet: { questions: Question[] };
+        remainingRequests?: number;
+      } = await res.json();
       const session: Session = {
         id:
           typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -78,6 +85,9 @@ export function JobForm() {
       };
       saveSession(session);
       setLastSessionId(session.id);
+      if (typeof data.remainingRequests === 'number') {
+        setRemainingRequests(data.remainingRequests);
+      }
       router.push('/practice');
     } finally {
       setSubmitting(false);
