@@ -1,0 +1,256 @@
+---
+description: Outlines this application's objectives and architecture
+globs:
+alwaysApply: false
+---
+# AI Interview Coach - Objectives and Architecture
+
+**App objectives:** Users choose job & interview type, get AI‑generated questions, practice by typing or recording an answer, receive AI feedback (strengths, improvements, tips, example answer), and optionally retry. Store practice history in **localStorage** (no external DB).
+
+## High‑Level Architecture
+
+```
+[UI Pages]
+  Home  ──▶  Practice  ──▶  Feedback  ──▶  History
+                  │             ▲             ▲
+                  ▼             │             │
+          /api/generate-questions     localStorage
+                  │
+          /api/assess-answer
+          (/api/transcribe optional)
+```
+
+## Minimal Data Contracts (TypeScript)
+
+```ts
+export type InterviewType =
+  | "screening" | "behavioral" | "technical" | "system_design" | "case" | "other";
+
+export interface JobConfig {
+  role: string;               // e.g., "Frontend Engineer"
+  interviewType: InterviewType;
+  seniority?: "intern" | "junior" | "mid" | "senior" | "lead";
+  extras?: string;            // optional context supplied by the user
+}
+
+export interface Question {
+  id: string;                 // uuid
+  text: string;
+  category?: string;          // e.g., "STAR", "algorithms", "product sense"
+  difficulty?: 1 | 2 | 3;     // 1 easy
+}
+
+export interface Attempt {
+  id: string;                 // uuid
+  questionId: string;
+  startedAt: string;          // ISO
+  endedAt?: string;
+  answerText?: string;
+  audioUrl?: string;          // blob URL if recorded
+  transcript?: string;        // if audio transcribed
+  feedback?: Feedback;
+}
+
+export interface Feedback {
+  summary: string;            // 1–2 sentence overview
+  strengths: string[];
+  improvements: string[];     // actionable
+  tips: string[];             // short, tactical
+  exampleAnswer: string;      // compact model answer
+  score?: number;             // 0–100 for quick progress feel
+}
+
+export interface Session {
+  id: string;                 // uuid
+  job: JobConfig;
+  createdAt: string;
+  questions: Question[];
+  attempts: Attempt[];        // many attempts per question
+}
+```
+
+**localStorage keys**
+
+* `aicoach.sessions` → `Session[]`
+* `aicoach.lastSessionId` → `string`
+
+---
+
+## Pages & Components
+
+* **`/` Home**
+
+  * Form: Role (text), Interview type (select), seniority (optional), extras (textarea)
+  * Button: **Start Practice** → calls `/api/generate-questions` → `/practice`
+* **`/practice`**
+
+  * Question viewer (current index, total)
+  * Answer input **TextArea**
+  * \[Optional] Record button (toggle) → waveform + timer → stores blob URL
+  * Actions: Submit Answer → `/api/assess-answer`; Skip; New Question
+* **Feedback panel** (in practice page)
+
+  * Renders `Feedback` (summary, strengths, improvements, tips, model answer, score)
+  * Actions: Try Again (same question), Next Question, Save Attempt
+* **`/history`**
+
+  * List of sessions (role + date + counts)
+  * Expand to see attempts & feedback; re‑practice a past question
+
+**Core components**
+
+* `JobForm`, `QuestionCard`, `AnswerEditor`, `Recorder` (optional), `FeedbackCard`, `HistoryList`
+
+---
+
+## API Routes (Next.js App Router)
+### `POST /api/generate-questions`
+
+**Input:** `JobConfig`
+**Output:** `{ questions: Question[] }`
+
+* Use OpenAI Responses API with a system prompt + JSON schema enforcing `Question[]`.
+
+### `POST /api/assess-answer`
+
+**Input:** `{ job: JobConfig, question: Question, answerText?: string, transcript?: string }`
+**Output:** `Feedback`
+
+* Enforce JSON schema; cap tokens; short, actionable feedback.
+
+### `POST /api/transcribe` (optional)
+
+**Input:** audio file (webm/ogg)
+**Output:** `{ transcript: string }`
+
+* Use OpenAI Whisper; keep under size/time limits.
+
+**Security:** All routes server‑only; read API key from env. Rate‑limit by IP (simple in‑memory limiter) to avoid abuse.
+
+## Prompting (Deterministic, JSON‑only)
+
+**Shared system preface:**
+
+* "You are an expert interview coach. Be concise, specific, and actionable."
+* Always return **valid JSON** that matches the provided schema. No prose outside JSON.
+
+**Question Generation (schema: `Question[]`)**
+
+* Inputs: role, interviewType, seniority, extras
+* Guidance:
+
+  * 5–10 questions; vary categories (behavioral/technical as relevant)
+  * Calibrate difficulty to seniority; include at least 1 role‑specific scenario
+  * Keep each question ≤ 200 chars; no numbering; unique IDs not required (we’ll add UUIDs)
+
+**Answer Assessment (schema: `Feedback`)**
+
+* Consider: role, interviewType, question, answer/transcript
+* Output:
+
+  * `summary` (≤ 2 sentences)
+  * `strengths` (≤ 3 bullets)
+  * `improvements` (≤ 3 bullets; each starts with a verb)
+  * `tips` (≤ 3 bullets; tactical)
+  * `exampleAnswer` (≤ 160 words, crisp; use STAR for behavioral)
+  * `score` integer 0–100 (rough rubric below)
+
+**Rubric (hint to model)**
+
+* Behavioral: STAR structure, outcomes, metrics, reflection.
+* Technical: clarity, correctness, trade‑offs, complexity, testing.
+* Product/Design: user impact, prioritization, constraints, KPIs.
+
+## Session Flow (Pseudo‑state)
+
+```ts
+state = {
+  session: Session | null,
+  currentQuestionIndex: number,
+  status: "idle" | "asking" | "assessing" | "feedback",
+};
+
+startPractice(job) → generateQuestions(job) → create session → idx=0
+submitAnswer(answer) → status="assessing" → assessAnswer() → store feedback → status="feedback"
+tryAgain() → keep idx → reset editor
+nextQuestion() → idx++ (bounds check); if past end, offer new set
+saveAttempt() → push to session.attempts → persist
+```
+
+## localStorage Helpers
+
+```ts
+const KEY = "aicoach.sessions";
+
+export function loadSessions(): Session[] {
+  try { return JSON.parse(localStorage.getItem(KEY) ?? "[]"); }
+  catch { return []; }
+}
+
+export function saveSession(session: Session) {
+  const all = loadSessions();
+  const idx = all.findIndex(s => s.id === session.id);
+  if (idx >= 0) all[idx] = session; else all.unshift(session);
+  localStorage.setItem(KEY, JSON.stringify(all));
+}
+```
+
+## Error Handling & Offline
+
+* Guard empty role/type; show inline form errors.
+* Timeouts & API errors → toast + retry.
+* If `localStorage` unavailable, degrade to memory state.
+* Large audio → show file size/time limit and compress or reject.
+
+
+## Accessibility & UX
+
+* Keyboard‑first: focus rings, Escape to cancel recording, Enter to submit.
+* Announce state changes (recording started/stopped, feedback loaded) with ARIA live regions.
+* Provide text alternative for audio (transcript box).
+* Keep latency visible (loading spinners with verb: “Generating questions…”).
+
+## Lightweight Styling
+
+* Single column, max‑width container, 16px base, 24px line height.
+* Cards: Question, Answer, Feedback.
+* Use monospace block for example answer copy button.
+
+## Testing/QA Checklist (Today)
+
+* [ ] Form validates & submits
+* [ ] Questions JSON is valid; duplicates filtered
+* [ ] Assessment JSON matches schema; all fields render
+* [ ] History page renders prior sessions; can re‑open a question
+* [ ] Optional audio: record → transcribe → assess path works
+
+## Guardrails (Important)
+
+* Keep file count minimal; avoid premature abstractions.
+* Strong typing with the interfaces above.
+* All AI calls must return **strict JSON** following provided zod schemas; reject and retry on parse errors.
+* No dependencies that bloat build (>300kB) unless necessary.
+* Ship text‑only first; audio behind a feature flag.
+
+## Folder Sketch
+
+```
+app/
+  page.tsx               // Home (JobForm)
+  practice/page.tsx      // Practice + Feedback
+  history/page.tsx       // Past sessions
+  api/
+    generate-questions/route.ts
+    assess-answer/route.ts
+    transcribe/route.ts  // optional
+components/
+  JobForm.tsx
+  QuestionCard.tsx
+  AnswerEditor.tsx
+  FeedbackCard.tsx
+  Recorder.tsx           // optional
+lib/
+  types.ts
+  storage.ts
+  openai.ts              // thin client wrappers
+```

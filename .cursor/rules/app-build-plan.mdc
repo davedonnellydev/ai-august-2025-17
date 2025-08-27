@@ -1,0 +1,82 @@
+---
+description: Outlines the plan for building this application within a day
+globs:
+alwaysApply: false
+---
+
+### One‑day build strategy (pragmatic best practices)
+- **Principles**: Strong TypeScript types, strict JSON via zod, minimal deps, server‑only API key, rate‑limited endpoints, localStorage persistence, accessible UI, text‑only first (audio behind a flag).
+
+### Phase 1 — Foundations (≈1h)
+- **Types**: Create `lib/types.ts` with the provided `JobConfig`, `Question`, `Attempt`, `Feedback`, `Session`.
+- **Storage**: `lib/storage.ts` with `loadSessions()`/`saveSession()` helpers (provided in doc) plus simple in‑memory fallback if `localStorage` unavailable.
+- **OpenAI wrapper**: `lib/openai.ts` thin client around Responses API:
+  - Expose `generateQuestions(job: JobConfig): Promise<Question[]>`
+  - Expose `assessAnswer(input): Promise<Feedback>`
+  - Add a `jsonOnly<T>(schema: z.ZodType<T>)` helper: retry once if parse fails; throw on second failure.
+- **Config**: `app/config/constants.ts` for model names, token caps, feature flags (e.g., `AUDIO_ENABLED=false`).
+- **Rate limiting**: Simple in‑memory limiter Map by IP per route (X requests per minute), with 429 JSON.
+
+### Phase 2 — API routes (≈3h)
+- **`POST /api/generate-questions`**:
+  - Input: `JobConfig` validated via zod.
+  - System prompt per doc, Responses API, schema‑constrained to `Question[]`.
+  - Post‑process: attach `crypto.randomUUID()` as `id`, dedupe similar texts, clamp length ≤ 200 chars.
+- **`POST /api/assess-answer`**:
+  - Input: `{ job, question, answerText?, transcript? }` (zod).
+  - Responses API with `Feedback` schema, cap tokens, concise outputs.
+- **`POST /api/transcribe` (optional, behind flag)**:
+  - Only if `AUDIO_ENABLED`, otherwise 404.
+  - Validate file size/duration; use Whisper; return `{ transcript }`.
+- **Security**: Read OpenAI key from `process.env.OPENAI_API_KEY`. Never expose to client. Enforce rate limit first.
+
+### Phase 3 — UI pages & core components (≈4h)
+- **Home (`app/page.tsx`) + `components/JobForm.tsx`**:
+  - Form fields per spec; simple client validation (require role + interviewType).
+  - On submit: call `/api/generate-questions`, create `Session`, persist via `saveSession`, store `aicoach.lastSessionId`, navigate to `/practice`.
+- **Practice (`app/practice/page.tsx`)**:
+  - Local `useState` for `session`, `currentQuestionIndex`, `status`.
+  - Components: 
+    - `QuestionCard` (shows current question, index/total),
+    - `AnswerEditor` (textarea; if `AUDIO_ENABLED`, show `Recorder` stub),
+    - `FeedbackCard` (render `Feedback`).
+  - Actions: Submit Answer → call `/api/assess-answer`, set feedback; Try Again → clear editor; Next Question → bounds check; New Set → call `generate-questions` again; Save Attempt → push to `session.attempts` + persist.
+- **History (`app/history/page.tsx`)**:
+  - Read sessions from storage; list by date/role; expand to view attempts and re‑open a question into `/practice`.
+
+### Phase 4 — UX/A11y & resilience (≈0.5h)
+- **A11y**: Keyboard‑first; visible focus; ARIA live region to announce “Generating questions…” and “Feedback loaded.”
+- **Errors**: Inline form errors; toast on API failures with retry; show loading verbs.
+- **Offline**: Graceful storage fallback (in‑memory session var).
+
+### Phase 5 — Validation & QA (≈1h)
+- **Schema tests**: Unit tests for zod schemas accepting/rejecting shapes.
+- **API smoke**: Mock OpenAI in tests; ensure endpoints return valid JSON matching schemas.
+- **UI checks**: Validate form submit, render feedback fields, history rendering and re‑open flow.
+
+### Phase 6 — Polish & handoff (≈0.5h)
+- Environment README: how to set `OPENAI_API_KEY`.
+- Manual pass for rate limits, token caps, and copy.
+- Leave `Recorder` behind a flag; ship text‑only.
+
+### Key best‑practice decisions
+- **Strict JSON contracts**: All model responses pass `zod.safeParse`; one retry on parse fail.
+- **Types end‑to‑end**: Route handlers and client code use shared interfaces from `lib/types.ts`.
+- **Minimal deps**: Use built‑in `crypto.randomUUID()`; avoid heavy UI libs; no extra state libraries.
+- **Security**: Server‑only OpenAI key; IP rate limiting; predictable error JSON.
+- **Perf**: Small prompts; cap tokens; short streaming not required for day‑1.
+- **Scoping**: Audio transcribe behind a feature flag; can enable later without changing contracts.
+
+### Day plan (target ~10h)
+- 1h: Types, storage, openai wrapper, config, rate limit.
+- 3h: Implement `generate-questions` and `assess-answer` with zod + retries.
+- 4h: Pages (`Home`, `Practice`, `History`) and core components; wire flows and persistence.
+- 1h: Tests and QA checklist from doc.
+- 0.5h: A11y polish and error UX.
+- 0.5h: README/env, final pass.
+
+- Blockers/Risks: JSON parse drift from the model; mitigate with schema tools and a single retry. Token/latency budgets; mitigate with concise prompts and caps.
+
+Summary:
+- Deliver text‑only MVP in one day with strict JSON, typed contracts, rate‑limited APIs, and localStorage persistence.
+- Audio is stubbed behind a flag to keep scope controlled.
