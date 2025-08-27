@@ -12,6 +12,7 @@ import {
   Textarea,
   Group,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import type { JobConfig, Session, Question } from '@/lib/types';
 import { saveSession, setLastSessionId } from '@/lib/storage';
 
@@ -20,6 +21,11 @@ type FormState = {
   interviewType: JobConfig['interviewType'] | '';
   seniority: JobConfig['seniority'] | '';
   extras: string;
+};
+
+type FieldErrors = {
+  role?: string;
+  interviewType?: string;
 };
 
 export function JobForm() {
@@ -32,35 +38,23 @@ export function JobForm() {
   });
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [liveMessage, setLiveMessage] = React.useState('');
+  const [fieldErrors, setFieldErrors] = React.useState<FieldErrors>({});
+  const errorRef = React.useRef<HTMLDivElement | null>(null);
+  const roleInputRef = React.useRef<HTMLInputElement | null>(null);
+  const interviewTypeRef = React.useRef<HTMLInputElement | null>(null);
 
   const handleChange = <K extends keyof FormState>(
     key: K,
     value: FormState[K]
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setError(null);
-
-    if (!form.role.trim()) {
-      setError('Please enter a role.');
-      return;
-    }
-    if (!form.interviewType) {
-      setError('Please select an interview type.');
-      return;
-    }
-
-    const job: JobConfig = {
-      role: form.role.trim(),
-      interviewType: form.interviewType as JobConfig['interviewType'],
-      seniority: form.seniority || undefined,
-      extras: form.extras.trim() || undefined,
-    };
-
+  async function generateAndStart(job: JobConfig) {
     setSubmitting(true);
+    setLiveMessage('Generating questions…');
     try {
       const res = await fetch('/api/generate-questions', {
         method: 'POST',
@@ -72,7 +66,6 @@ export function JobForm() {
         throw new Error(data.error || 'Failed to generate questions');
       }
       const data: { questionSet: { questions: Question[] } } = await res.json();
-      console.log(data);
       const session: Session = {
         id:
           typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -86,10 +79,64 @@ export function JobForm() {
       saveSession(session);
       setLastSessionId(session.id);
       router.push('/practice');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setFieldErrors({});
+
+    if (!form.role.trim()) {
+      const msg = 'Please enter a role.';
+      setFieldErrors((prev) => ({ ...prev, role: msg }));
+      setLiveMessage(msg);
+      // Focus role input
+      setTimeout(() => roleInputRef.current?.focus(), 0);
+      return;
+    }
+    if (!form.interviewType) {
+      const msg = 'Please select an interview type.';
+      setFieldErrors((prev) => ({ ...prev, interviewType: msg }));
+      setLiveMessage(msg);
+      // Focus interview type
+      setTimeout(() => interviewTypeRef.current?.focus(), 0);
+      return;
+    }
+
+    const job: JobConfig = {
+      role: form.role.trim(),
+      interviewType: form.interviewType as JobConfig['interviewType'],
+      seniority: form.seniority || undefined,
+      extras: form.extras.trim() || undefined,
+    };
+
+    try {
+      await generateAndStart(job);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      setError(msg);
+      setLiveMessage(msg);
+      notifications.show({
+        color: 'red',
+        title: 'Failed to start session',
+        message: (
+          <Group gap="xs">
+            <Text>{msg}</Text>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => generateAndStart(job)}
+            >
+              Retry
+            </Button>
+          </Group>
+        ),
+        withCloseButton: true,
+        autoClose: 5000,
+      });
     }
   }
 
@@ -103,20 +150,30 @@ export function JobForm() {
       aria-busy={submitting}
     >
       <Stack gap="md">
+        <div aria-live="polite" aria-atomic="true" className="sr-only">
+          {liveMessage}
+        </div>
         <Text fw={600} fz="lg">
           Start a new practice session
         </Text>
         <TextInput
           label="Role"
           placeholder="e.g., Frontend Engineer"
+          name="role"
+          id="role"
           value={form.role}
           onChange={(e) => handleChange('role', e.currentTarget.value)}
           required
           disabled={submitting}
+          error={fieldErrors.role}
+          ref={roleInputRef}
+          aria-invalid={Boolean(fieldErrors.role) || undefined}
         />
         <Select
           label="Interview type"
           placeholder="Select type"
+          name="interviewType"
+          id="interviewType"
           data={[
             { value: 'screening', label: 'Screening' },
             { value: 'behavioral', label: 'Behavioral' },
@@ -134,6 +191,9 @@ export function JobForm() {
           }
           required
           disabled={submitting}
+          error={fieldErrors.interviewType}
+          ref={interviewTypeRef}
+          aria-invalid={Boolean(fieldErrors.interviewType) || undefined}
         />
         <Select
           label="Seniority (optional)"
@@ -162,13 +222,13 @@ export function JobForm() {
         />
 
         {error ? (
-          <Text c="red" role="alert">
+          <Text c="red" role="alert" tabIndex={-1} ref={errorRef}>
             {error}
           </Text>
         ) : null}
 
         <Group justify="space-between" align="center">
-          <div aria-live="polite">
+          <div aria-live="polite" aria-atomic="true">
             {submitting ? <Text c="dimmed">Generating questions…</Text> : null}
           </div>
           <Button type="submit" loading={submitting} disabled={submitting}>

@@ -16,6 +16,7 @@ import {
   Text,
   Textarea,
   Title,
+  Kbd,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { Attempt, Feedback, Session } from '@/lib/types';
@@ -33,6 +34,13 @@ export default function PracticeClient() {
   const [status, setStatus] = React.useState<Status>('idle');
   const [error, setError] = React.useState<string | null>(null);
   const [attempt, setAttempt] = React.useState<Attempt | null>(null);
+  const [liveMessage, setLiveMessage] = React.useState('');
+
+  const liveRegionRef = React.useRef<HTMLDivElement | null>(null);
+  const questionRegionRef = React.useRef<HTMLDivElement | null>(null);
+  const feedbackRegionRef = React.useRef<HTMLDivElement | null>(null);
+  const errorRef = React.useRef<HTMLDivElement | null>(null);
+  const answerTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
 
   React.useEffect(() => {
     const lastId = getLastSessionId();
@@ -70,13 +78,18 @@ export default function PracticeClient() {
     return session.questions[currentIndex] ?? null;
   }, [session, currentIndex]);
 
-  function resetForCurrentQuestion(nextIndex: number) {
+  function resetForCurrentQuestion(
+    nextIndex: number,
+    sourceSession?: Session | null
+  ) {
     setCurrentIndex(nextIndex);
     setAnswerText('');
     setFeedback(null);
     setStatus('idle');
-    if (session) {
-      const q = session.questions[nextIndex];
+    setLiveMessage('');
+    const activeSession = sourceSession ?? session;
+    if (activeSession) {
+      const q = activeSession.questions[nextIndex];
       setAttempt({
         id:
           typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -89,17 +102,123 @@ export default function PracticeClient() {
     }
   }
 
-  async function handleSubmit() {
+  React.useEffect(() => {
+    if (error) {
+      errorRef.current?.focus();
+      setLiveMessage(`Error: ${error}`);
+    }
+  }, [error]);
+
+  React.useEffect(() => {
+    if (session && currentQuestion) {
+      setLiveMessage(
+        `Question ${currentIndex + 1} of ${session.questions.length}`
+      );
+      // Move focus to the question text for screen readers
+      questionRegionRef.current?.focus();
+    }
+  }, [session, currentQuestion, currentIndex]);
+
+  // Keyboard shortcuts for navigation and actions
+  React.useEffect(() => {
+    function isInteractiveContext(node: HTMLElement | null): boolean {
+      if (!node) {
+        return false;
+      }
+      const tag = node.tagName;
+      if (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        (node as HTMLElement).isContentEditable
+      ) {
+        return true;
+      }
+      const el = node.closest(
+        '[role="textbox"], [role="tablist"], [role="listbox"], [role="menu"], [role="menubar"], [role="combobox"], [role="slider"]'
+      );
+      return Boolean(el);
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const inInteractive = isInteractiveContext(target);
+
+      // Submit answer: Ctrl/Cmd + Enter
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (status !== 'assessing' && status !== 'asking') {
+          handleSubmit(answerTextareaRef.current?.value ?? answerText);
+        }
+        return;
+      }
+
+      if (!inInteractive) {
+        // Next/Prev question with arrows
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (status !== 'assessing' && status !== 'asking') {
+            handleNextQuestion();
+          }
+          return;
+        }
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (status !== 'assessing' && status !== 'asking') {
+            handlePrevQuestion();
+          }
+          return;
+        }
+        // T: Try again
+        if (e.key.length === 1 && e.key.toLowerCase() === 't') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (status !== 'assessing' && status !== 'asking') {
+            handleTryAgain();
+          }
+          return;
+        }
+        // N: New set
+        if (e.key.length === 1 && e.key.toLowerCase() === 'n') {
+          e.preventDefault();
+          e.stopPropagation();
+          if (status !== 'assessing') {
+            handleNewSet();
+          }
+          return;
+        }
+        // A: Focus answer textarea
+        if (e.key.length === 1 && e.key.toLowerCase() === 'a') {
+          e.preventDefault();
+          e.stopPropagation();
+          answerTextareaRef.current?.focus();
+        }
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [status, session, currentIndex, answerText]);
+
+  async function handleSubmit(overrideText?: string) {
     if (!session || !currentQuestion) {
       return;
     }
     setError(null);
-    const trimmed = answerText.trim();
+    const sourceText =
+      typeof overrideText === 'string' ? overrideText : answerText;
+    const trimmed = sourceText.trim();
     if (!trimmed) {
       setError('Please enter an answer first.');
       return;
     }
     setStatus('assessing');
+    setLiveMessage('Assessing your answer…');
     try {
       const res = await fetch('/api/assess-answer', {
         method: 'POST',
@@ -117,6 +236,7 @@ export default function PracticeClient() {
       const data: { feedback: Feedback } = await res.json();
       setFeedback(data.feedback);
       setStatus('feedback');
+      setLiveMessage('Feedback loaded.');
       setAttempt((prev) =>
         prev
           ? {
@@ -127,9 +247,31 @@ export default function PracticeClient() {
             }
           : prev
       );
+      // Move focus to feedback region for immediate announcement
+      feedbackRegionRef.current?.focus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      setError(msg);
       setStatus('idle');
+      setLiveMessage(`Error: ${msg}`);
+      notifications.show({
+        color: 'red',
+        title: 'Failed to assess answer',
+        message: (
+          <Group gap="xs">
+            <Text>{msg}</Text>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => handleSubmit(trimmed)}
+            >
+              Retry
+            </Button>
+          </Group>
+        ),
+        withCloseButton: true,
+        autoClose: 5000,
+      });
     }
   }
 
@@ -137,6 +279,7 @@ export default function PracticeClient() {
     setAnswerText('');
     setFeedback(null);
     setStatus('idle');
+    setLiveMessage('Answer cleared. You can type a new answer.');
     setAttempt((prev) => ({
       id:
         typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -146,6 +289,8 @@ export default function PracticeClient() {
       startedAt: new Date().toISOString(),
       answerText: '',
     }));
+    // Return focus to the answer textarea for convenience
+    answerTextareaRef.current?.focus();
   }
 
   function titleCase(value?: string | null) {
@@ -188,6 +333,7 @@ export default function PracticeClient() {
     }
     setStatus('asking');
     setError(null);
+    setLiveMessage('Generating a new set of questions…');
     try {
       const res = await fetch('/api/generate-questions', {
         method: 'POST',
@@ -198,14 +344,40 @@ export default function PracticeClient() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to generate questions');
       }
-      const data: { questions: Session['questions'] } = await res.json();
-      const updated: Session = { ...session, questions: data.questions };
+      const data: {
+        questionSet?: { questions?: Session['questions'] } | null;
+      } = await res.json();
+      const newQuestions = data?.questionSet?.questions ?? [];
+      if (!Array.isArray(newQuestions) || newQuestions.length === 0) {
+        throw new Error('No questions received. Please try again.');
+      }
+      const updated: Session = { ...session, questions: newQuestions };
       setSession(updated);
       saveSession(updated);
-      resetForCurrentQuestion(0);
+      resetForCurrentQuestion(0, updated);
+      setLiveMessage(
+        `New set loaded. Question 1 of ${updated.questions.length}`
+      );
+      questionRegionRef.current?.focus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      setError(msg);
       setStatus('idle');
+      setLiveMessage(`Error: ${msg}`);
+      notifications.show({
+        color: 'red',
+        title: 'Failed to generate questions',
+        message: (
+          <Group gap="xs">
+            <Text>{msg}</Text>
+            <Button size="xs" variant="outline" onClick={handleNewSet}>
+              Retry
+            </Button>
+          </Group>
+        ),
+        withCloseButton: true,
+        autoClose: 5000,
+      });
     }
   }
 
@@ -249,6 +421,14 @@ export default function PracticeClient() {
   return (
     <Container size="sm" py="xl">
       <Stack gap="lg">
+        <div
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+          ref={liveRegionRef}
+        >
+          {liveMessage}
+        </div>
         <div>
           <Title order={2}>Practice</Title>
           <Text c="dimmed">
@@ -305,7 +485,9 @@ export default function PracticeClient() {
                 {currentIndex + 1} / {session.questions.length}
               </Badge>
             </Group>
-            <Text>{currentQuestion.text}</Text>
+            <Text ref={questionRegionRef} tabIndex={-1}>
+              {currentQuestion.text}
+            </Text>
           </Stack>
         </Card>
 
@@ -319,15 +501,28 @@ export default function PracticeClient() {
               value={answerText}
               onChange={(e) => setAnswerText(e.currentTarget.value)}
               disabled={status === 'assessing' || status === 'asking'}
+              ref={answerTextareaRef}
             />
+            <Text c="dimmed" fz="sm">
+              Shortcuts: <Kbd>Ctrl</Kbd>/<Kbd>⌘</Kbd> + <Kbd>Enter</Kbd> submit
+              ·<Kbd>←</Kbd>/<Kbd>→</Kbd> navigate · <Kbd>T</Kbd> try again ·
+              <Kbd>N</Kbd> new set · <Kbd>A</Kbd> focus answer
+            </Text>
+            {status === 'assessing' ? (
+              <Text c="dimmed" aria-live="polite">
+                Assessing answer…
+              </Text>
+            ) : null}
             {error ? (
-              <Text c="red" role="alert">
+              <Text c="red" role="alert" tabIndex={-1} ref={errorRef}>
                 {error}
               </Text>
             ) : null}
             <Group justify="flex-end">
               <Button
-                onClick={handleSubmit}
+                onClick={() =>
+                  handleSubmit(answerTextareaRef.current?.value ?? answerText)
+                }
                 loading={status === 'assessing'}
                 disabled={status === 'assessing' || status === 'asking'}
               >
@@ -345,7 +540,14 @@ export default function PracticeClient() {
         </Paper>
 
         {feedback ? (
-          <Paper withBorder p="md" radius="md" aria-live="polite">
+          <Paper
+            withBorder
+            p="md"
+            radius="md"
+            aria-live="polite"
+            tabIndex={-1}
+            ref={feedbackRegionRef}
+          >
             <Stack gap="sm">
               <Group justify="space-between" align="center">
                 <Text fw={600}>Feedback</Text>
@@ -466,7 +668,7 @@ export default function PracticeClient() {
                 loading={status === 'asking'}
                 disabled={status === 'assessing'}
               >
-                New set
+                {status === 'asking' ? 'Generating…' : 'New set'}
               </Button>
             </Group>
           </Group>

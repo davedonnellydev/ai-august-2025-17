@@ -1,5 +1,6 @@
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
+import './globals.css';
 
 import React from 'react';
 import {
@@ -9,6 +10,7 @@ import {
 } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { theme } from '../theme';
+import StorageStatusBanner from '@/components/StorageStatusBanner';
 
 export const metadata = {
   title: 'AI Interview Coach',
@@ -30,7 +32,15 @@ export default function RootLayout({ children }: { children: any }) {
       <body>
         <MantineProvider theme={theme}>
           <Notifications position="top-center" limit={3} />
-          {children}
+          <a href="#main" className="skip-link">
+            Skip to main content
+          </a>
+          <div aria-live="polite">
+            <StorageStatusBanner />
+          </div>
+          <main id="main" tabIndex={-1}>
+            {children}
+          </main>
         </MantineProvider>
       </body>
     </html>
