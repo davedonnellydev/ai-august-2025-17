@@ -14,3 +14,13 @@ export const QUESTIONS_MAX_OUTPUT_TOKENS: number = Number(
 export const FEEDBACK_MAX_OUTPUT_TOKENS: number = Number(
   process.env.NEXT_PUBLIC_FEEDBACK_MAX_OUTPUT_TOKENS || 800
 );
+
+// Audio transcription defaults
+export const TRANSCRIBE_MODEL: string =
+  process.env.NEXT_PUBLIC_TRANSCRIBE_MODEL || 'whisper-1';
+export const MAX_AUDIO_BYTES: number = Number(
+  process.env.NEXT_PUBLIC_MAX_AUDIO_BYTES || 10 * 1024 * 1024
+);
+export const MAX_AUDIO_DURATION_MS: number = Number(
+  process.env.NEXT_PUBLIC_MAX_AUDIO_DURATION_MS || 5 * 60 * 1000
+);
