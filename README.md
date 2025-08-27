@@ -6,19 +6,24 @@
 **🎯 Project Objective**: User answers typical interview Qs, AI provides feedback.  
 **🚀 Features**: “Start Practice” button: App asks a random or chosen interview question; User types (or optionally records) their answer; AI analyzes the answer and gives tailored feedback, including strengths, improvement tips, and example responses; Option to “try again” or get a new question; Track progress or history (bonus)  
 **🛠️ Tech used**: Next.js, TypeScript, OpenAI Speech to Text & Responses APIs  
-**▶️ Live Demo**: _[https://your-demo-url.com](https://your-demo-url.com)_  
-_(Link will be added after deployment)_
+**▶️ Live Demo**: [https://dave-donnelly-ai-august-17.netlify.app/](https://dave-donnelly-ai-august-17.netlify.app/)
 
 ## 🗒️ Summary
 
-**Lessons learned**  
-_A little summary of learnings_
+This app was an **AI-powered interview coach**. The idea: you input the job title you’re preparing for, the type of interview, the seniority of the role, and any extra notes — and the AI generates a set of interview questions tailored to you. You can then answer them, and the AI provides feedback on your responses.
 
-**Blockers**  
-_Note any blockers here_
+The feature I most wanted to experiment with was **live transcription**, but that was the one thing I didn’t get to. Interestingly, this wasn’t a failure of time management so much as good planning: I started the day by asking AI to review the project objectives, sketch out an architecture, and then generate a realistic one-day build plan. That plan flagged transcription as a time sink that would push the project well beyond a single day. So instead of forcing it, I built the API route and put it behind a feature toggle, saving the UI and testing for later.
+
+The result was a day where I hit nearly all of my goals, wrapped up on time, and still have a solid foundation to return to when I’m ready to implement transcription. It was a reminder that **properly scoping a project is just as valuable as building it**.
+
+**Lessons learned**
+
+- Get AI to help scope and plan before you build — it can highlight features that are too ambitious for the time frame.
+- Feature toggles are a great way to prep for future work without blocking delivery.
+- Scoping realistically allows you to finish on time without overworking, while still leaving the door open for iteration.
 
 **Final thoughts**  
-_Any final thoughts here_
+I’m happy with where this landed. As I anticipate the need for interview practice myself, I know this is an app I’ll come back to — and it’s in good shape for me to pick up again when I do.
 
 This project has been built as part of my AI August App-A-Day Challenge. You can read more information on the full project here: [https://github.com/davedonnellydev/ai-august-2025-challenge](https://github.com/davedonnellydev/ai-august-2025-challenge).
 

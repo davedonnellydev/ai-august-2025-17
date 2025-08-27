@@ -11,6 +11,7 @@ import {
 import { Notifications } from '@mantine/notifications';
 import { theme } from '../theme';
 import StorageStatusBanner from '@/components/StorageStatusBanner';
+import RequestQuotaFooter from '@/components/RequestQuotaFooter';
 
 export const metadata = {
   title: 'AI Interview Coach',
@@ -31,16 +32,25 @@ export default function RootLayout({ children }: { children: any }) {
       </head>
       <body>
         <MantineProvider theme={theme}>
-          <Notifications position="top-center" limit={3} />
-          <a href="#main" className="skip-link">
-            Skip to main content
-          </a>
-          <div aria-live="polite">
-            <StorageStatusBanner />
+          <div
+            style={{
+              minHeight: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <Notifications position="top-center" limit={3} />
+            <a href="#main" className="skip-link">
+              Skip to main content
+            </a>
+            <div aria-live="polite">
+              <StorageStatusBanner />
+            </div>
+            <main id="main" tabIndex={-1} style={{ flex: 1 }}>
+              {children}
+            </main>
+            <RequestQuotaFooter />
           </div>
-          <main id="main" tabIndex={-1}>
-            {children}
-          </main>
         </MantineProvider>
       </body>
     </html>

@@ -5,6 +5,7 @@ import type { Session } from './types';
 
 const SESSIONS_KEY = 'aicoach.sessions';
 const LAST_SESSION_ID_KEY = 'aicoach.lastSessionId';
+const REMAINING_REQUESTS_KEY = 'aicoach.remainingRequests';
 
 // In-memory fallback store. Used when localStorage is unavailable (SSR or disabled).
 const memoryStore: Record<string, string> = {};
@@ -118,4 +119,26 @@ export function getStorageMode(): 'localStorage' | 'memory' {
 
 export function isMemoryFallback(): boolean {
   return getStorageMode() === 'memory';
+}
+
+// Remaining requests tracking for UI footer (client-side only convenience)
+export function setRemainingRequests(value: number): void {
+  try {
+    setItem(REMAINING_REQUESTS_KEY, String(Math.max(0, Math.floor(value))));
+  } catch {
+    // ignore
+  }
+}
+
+export function getRemainingRequests(): number | null {
+  try {
+    const raw = getItem(REMAINING_REQUESTS_KEY);
+    if (raw == null) {
+      return null;
+    }
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
 }

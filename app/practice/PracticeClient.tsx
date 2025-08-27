@@ -20,7 +20,12 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import type { Attempt, Feedback, Session } from '@/lib/types';
-import { getLastSessionId, loadSessions, saveSession } from '@/lib/storage';
+import {
+  getLastSessionId,
+  loadSessions,
+  saveSession,
+  setRemainingRequests,
+} from '@/lib/storage';
 
 type Status = 'idle' | 'assessing' | 'feedback' | 'asking';
 
@@ -233,8 +238,12 @@ export default function PracticeClient() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to assess answer');
       }
-      const data: { feedback: Feedback } = await res.json();
+      const data: { feedback: Feedback; remainingRequests?: number } =
+        await res.json();
       setFeedback(data.feedback);
+      if (typeof data.remainingRequests === 'number') {
+        setRemainingRequests(data.remainingRequests);
+      }
       setStatus('feedback');
       setLiveMessage('Feedback loaded.');
       setAttempt((prev) =>
@@ -346,6 +355,7 @@ export default function PracticeClient() {
       }
       const data: {
         questionSet?: { questions?: Session['questions'] } | null;
+        remainingRequests?: number;
       } = await res.json();
       const newQuestions = data?.questionSet?.questions ?? [];
       if (!Array.isArray(newQuestions) || newQuestions.length === 0) {
@@ -354,6 +364,9 @@ export default function PracticeClient() {
       const updated: Session = { ...session, questions: newQuestions };
       setSession(updated);
       saveSession(updated);
+      if (typeof data.remainingRequests === 'number') {
+        setRemainingRequests(data.remainingRequests);
+      }
       resetForCurrentQuestion(0, updated);
       setLiveMessage(
         `New set loaded. Question 1 of ${updated.questions.length}`
@@ -453,6 +466,7 @@ export default function PracticeClient() {
           onStepClick={(i) => resetForCurrentQuestion(i)}
           allowNextStepsSelect
           size="sm"
+          aria-label="Question progress"
         >
           {session.questions.map((q, idx) => {
             const qid = q.id;
@@ -477,10 +491,18 @@ export default function PracticeClient() {
           })}
         </Stepper>
 
-        <Card withBorder padding="md" radius="md">
+        <Card
+          withBorder
+          padding="md"
+          radius="md"
+          role="region"
+          aria-labelledby="question-label"
+        >
           <Stack gap="xs">
             <Group justify="space-between" align="center">
-              <Text fw={600}>Question</Text>
+              <Text fw={600} id="question-label">
+                Question
+              </Text>
               <Badge variant="light">
                 {currentIndex + 1} / {session.questions.length}
               </Badge>
@@ -491,9 +513,11 @@ export default function PracticeClient() {
           </Stack>
         </Card>
 
-        <Paper withBorder p="md" radius="md">
+        <Paper withBorder p="md" radius="md" aria-labelledby="answer-label">
           <Stack gap="sm">
-            <Text fw={600}>Your answer</Text>
+            <Text fw={600} id="answer-label">
+              Your answer
+            </Text>
             <Textarea
               placeholder="Type your answer here"
               minRows={6}
@@ -502,8 +526,9 @@ export default function PracticeClient() {
               onChange={(e) => setAnswerText(e.currentTarget.value)}
               disabled={status === 'assessing' || status === 'asking'}
               ref={answerTextareaRef}
+              aria-describedby="answer-help"
             />
-            <Text c="dimmed" fz="sm">
+            <Text c="dimmed" fz="sm" id="answer-help">
               Shortcuts: <Kbd>Ctrl</Kbd>/<Kbd>⌘</Kbd> + <Kbd>Enter</Kbd> submit
               ·<Kbd>←</Kbd>/<Kbd>→</Kbd> navigate · <Kbd>T</Kbd> try again ·
               <Kbd>N</Kbd> new set · <Kbd>A</Kbd> focus answer
@@ -547,10 +572,14 @@ export default function PracticeClient() {
             aria-live="polite"
             tabIndex={-1}
             ref={feedbackRegionRef}
+            role="region"
+            aria-labelledby="feedback-label"
           >
             <Stack gap="sm">
               <Group justify="space-between" align="center">
-                <Text fw={600}>Feedback</Text>
+                <Text fw={600} id="feedback-label">
+                  Feedback
+                </Text>
                 {typeof feedback.score === 'number' ? (
                   <Badge color="blue" variant="light">
                     Score: {feedback.score}
