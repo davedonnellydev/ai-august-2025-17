@@ -12,10 +12,12 @@ import {
   List,
   Paper,
   Stack,
+  Stepper,
   Text,
   Textarea,
   Title,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import type { Attempt, Feedback, Session } from '@/lib/types';
 import { getLastSessionId, loadSessions, saveSession } from '@/lib/storage';
 
@@ -146,6 +148,18 @@ export default function PracticeClient() {
     }));
   }
 
+  function titleCase(value?: string | null) {
+    if (!value) {
+      return '';
+    }
+    return value
+      .toString()
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ''))
+      .join(' ');
+  }
+
   function handleNextQuestion() {
     if (!session) {
       return;
@@ -155,6 +169,17 @@ export default function PracticeClient() {
       return;
     }
     resetForCurrentQuestion(nextIndex);
+  }
+
+  function handlePrevQuestion() {
+    if (!session) {
+      return;
+    }
+    const prevIndex = currentIndex - 1;
+    if (prevIndex < 0) {
+      return;
+    }
+    resetForCurrentQuestion(prevIndex);
   }
 
   async function handleNewSet() {
@@ -188,18 +213,30 @@ export default function PracticeClient() {
     if (!session || !attempt) {
       return;
     }
+    const finalizedAttempt: Attempt = {
+      ...attempt,
+      endedAt: attempt.endedAt || new Date().toISOString(),
+    };
+    const existingIndex = session.attempts.findIndex(
+      (a) => a.id === attempt.id
+    );
+    const nextAttempts = [...session.attempts];
+    if (existingIndex >= 0) {
+      nextAttempts[existingIndex] = finalizedAttempt;
+    } else {
+      nextAttempts.unshift(finalizedAttempt);
+    }
     const updated: Session = {
       ...session,
-      attempts: [
-        {
-          ...attempt,
-          endedAt: attempt.endedAt || new Date().toISOString(),
-        },
-        ...session.attempts,
-      ],
+      attempts: nextAttempts,
     };
     setSession(updated);
     saveSession(updated);
+    notifications.show({
+      title: 'Saved',
+      message: 'Your attempt has been saved to history.',
+      color: 'teal',
+    });
   }
 
   if (!session || !currentQuestion) {
@@ -207,6 +244,7 @@ export default function PracticeClient() {
   }
 
   const atEndOfSet = currentIndex >= session.questions.length - 1;
+  const atStartOfSet = currentIndex <= 0;
 
   return (
     <Container size="sm" py="xl">
@@ -214,10 +252,50 @@ export default function PracticeClient() {
         <div>
           <Title order={2}>Practice</Title>
           <Text c="dimmed">
-            {session.job.role} · {session.job.interviewType}
-            {session.job.seniority ? ` · ${session.job.seniority}` : ''}
+            {session.job.role} · {titleCase(String(session.job.interviewType))}
+            {session.job.seniority
+              ? ` · ${titleCase(String(session.job.seniority))}`
+              : ''}
           </Text>
         </div>
+
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => router.push('/')}>
+            Home
+          </Button>
+          <Button variant="default" onClick={() => router.push('/history')}>
+            History
+          </Button>
+        </Group>
+
+        <Stepper
+          active={currentIndex}
+          onStepClick={(i) => resetForCurrentQuestion(i)}
+          allowNextStepsSelect
+          size="sm"
+        >
+          {session.questions.map((q, idx) => {
+            const qid = q.id;
+            const savedAnswered = session.attempts.some(
+              (a) =>
+                a.questionId === qid &&
+                (a.feedback || (a.answerText && a.answerText.length > 0))
+            );
+            const currentAnswered =
+              attempt &&
+              attempt.questionId === qid &&
+              (attempt.feedback ||
+                (attempt.answerText && attempt.answerText.length > 0));
+            const isAnswered = Boolean(savedAnswered || currentAnswered);
+            return (
+              <Stepper.Step
+                key={qid}
+                label={`Q${idx + 1}`}
+                color={isAnswered ? 'teal' : 'gray'}
+              />
+            );
+          })}
+        </Stepper>
 
         <Card withBorder padding="md" radius="md">
           <Stack gap="xs">
@@ -327,16 +405,35 @@ export default function PracticeClient() {
               <Group justify="space-between">
                 <Button
                   variant="default"
-                  onClick={handleNextQuestion}
-                  disabled={status === 'assessing' || status === 'asking'}
+                  onClick={handlePrevQuestion}
+                  disabled={
+                    status === 'assessing' ||
+                    status === 'asking' ||
+                    atStartOfSet
+                  }
                 >
-                  Next question
+                  Previous question
                 </Button>
                 <Group>
+                  <Button
+                    variant="default"
+                    onClick={handleNextQuestion}
+                    disabled={
+                      status === 'assessing' ||
+                      status === 'asking' ||
+                      atEndOfSet
+                    }
+                  >
+                    Next question
+                  </Button>
                   <Button onClick={handleSaveAttempt} variant="outline">
                     Save attempt
                   </Button>
-                  <Button onClick={handleNewSet} loading={status === 'asking'}>
+                  <Button
+                    onClick={handleNewSet}
+                    loading={status === 'asking'}
+                    disabled={status === 'assessing'}
+                  >
                     New set
                   </Button>
                 </Group>
@@ -347,14 +444,31 @@ export default function PracticeClient() {
           <Group justify="space-between">
             <Button
               variant="default"
-              onClick={handleNextQuestion}
-              disabled={status === 'assessing' || status === 'asking'}
+              onClick={handlePrevQuestion}
+              disabled={
+                status === 'assessing' || status === 'asking' || atStartOfSet
+              }
             >
-              {atEndOfSet ? 'End of set' : 'Next question'}
+              Previous question
             </Button>
-            <Button onClick={handleNewSet} loading={status === 'asking'}>
-              New set
-            </Button>
+            <Group>
+              <Button
+                variant="default"
+                onClick={handleNextQuestion}
+                disabled={
+                  status === 'assessing' || status === 'asking' || atEndOfSet
+                }
+              >
+                Next question
+              </Button>
+              <Button
+                onClick={handleNewSet}
+                loading={status === 'asking'}
+                disabled={status === 'assessing'}
+              >
+                New set
+              </Button>
+            </Group>
           </Group>
         )}
       </Stack>
