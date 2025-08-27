@@ -248,11 +248,24 @@ export default function PracticeClient() {
       // Move focus to feedback region for immediate announcement
       feedbackRegionRef.current?.focus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      setError(msg);
       setStatus('idle');
-      setLiveMessage(
-        `Error: ${err instanceof Error ? err.message : 'Something went wrong'}`
-      );
+      setLiveMessage(`Error: ${msg}`);
+      notifications.show({
+        color: 'red',
+        title: 'Failed to assess answer',
+        message: (
+          <Group gap="xs">
+            <Text>{msg}</Text>
+            <Button size="xs" variant="outline" onClick={() => handleSubmit(trimmed)}>
+              Retry
+            </Button>
+          </Group>
+        ),
+        withCloseButton: true,
+        autoClose: 5000,
+      });
     }
   }
 
@@ -336,16 +349,27 @@ export default function PracticeClient() {
       setSession(updated);
       saveSession(updated);
       resetForCurrentQuestion(0, updated);
-      setLiveMessage(
-        `New set loaded. Question 1 of ${updated.questions.length}`
-      );
+      setLiveMessage(`New set loaded. Question 1 of ${updated.questions.length}`);
       questionRegionRef.current?.focus();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      setError(msg);
       setStatus('idle');
-      setLiveMessage(
-        `Error: ${err instanceof Error ? err.message : 'Something went wrong'}`
-      );
+      setLiveMessage(`Error: ${msg}`);
+      notifications.show({
+        color: 'red',
+        title: 'Failed to generate questions',
+        message: (
+          <Group gap="xs">
+            <Text>{msg}</Text>
+            <Button size="xs" variant="outline" onClick={handleNewSet}>
+              Retry
+            </Button>
+          </Group>
+        ),
+        withCloseButton: true,
+        autoClose: 5000,
+      });
     }
   }
 
@@ -476,6 +500,9 @@ export default function PracticeClient() {
               ·<Kbd>←</Kbd>/<Kbd>→</Kbd> navigate · <Kbd>T</Kbd> try again ·
               <Kbd>N</Kbd> new set · <Kbd>A</Kbd> focus answer
             </Text>
+            {status === 'assessing' ? (
+              <Text c="dimmed" aria-live="polite">Assessing answer…</Text>
+            ) : null}
             {error ? (
               <Text c="red" role="alert" tabIndex={-1} ref={errorRef}>
                 {error}
@@ -483,7 +510,7 @@ export default function PracticeClient() {
             ) : null}
             <Group justify="flex-end">
               <Button
-                onClick={() => handleSubmit()}
+                onClick={() => handleSubmit(answerTextareaRef.current?.value ?? answerText)}
                 loading={status === 'assessing'}
                 disabled={status === 'assessing' || status === 'asking'}
               >
@@ -629,7 +656,7 @@ export default function PracticeClient() {
                 loading={status === 'asking'}
                 disabled={status === 'assessing'}
               >
-                New set
+                {status === 'asking' ? 'Generating…' : 'New set'}
               </Button>
             </Group>
           </Group>

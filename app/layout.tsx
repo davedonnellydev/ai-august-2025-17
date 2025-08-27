@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { theme } from '../theme';
+import StorageStatusBanner from '@/components/StorageStatusBanner';
 
 export const metadata = {
   title: 'AI Interview Coach',
@@ -34,6 +35,9 @@ export default function RootLayout({ children }: { children: any }) {
           <a href="#main" className="skip-link">
             Skip to main content
           </a>
+          <div aria-live="polite">
+            <StorageStatusBanner />
+          </div>
           <main id="main" tabIndex={-1}>
             {children}
           </main>

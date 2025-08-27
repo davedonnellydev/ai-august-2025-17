@@ -8,6 +8,7 @@ const LAST_SESSION_ID_KEY = 'aicoach.lastSessionId';
 
 // In-memory fallback store. Used when localStorage is unavailable (SSR or disabled).
 const memoryStore: Record<string, string> = {};
+let lastStorageMode: 'localStorage' | 'memory' = 'memory';
 
 function isLocalStorageAvailable(): boolean {
   try {
@@ -29,11 +30,13 @@ function isLocalStorageAvailable(): boolean {
 function getItem(key: string): string | null {
   if (isLocalStorageAvailable()) {
     try {
+      lastStorageMode = 'localStorage';
       return window.localStorage.getItem(key);
     } catch {
       // fall through to memory store
     }
   }
+  lastStorageMode = 'memory';
   return Object.hasOwn(memoryStore, key) ? memoryStore[key] : null;
 }
 
@@ -41,11 +44,13 @@ function setItem(key: string, value: string): void {
   if (isLocalStorageAvailable()) {
     try {
       window.localStorage.setItem(key, value);
+      lastStorageMode = 'localStorage';
       return;
     } catch {
       // fall through to memory store
     }
   }
+  lastStorageMode = 'memory';
   memoryStore[key] = value;
 }
 
@@ -103,4 +108,14 @@ export function removeSession(sessionId: string): void {
     const nextId = filtered.length > 0 ? filtered[0].id : '';
     setItem(LAST_SESSION_ID_KEY, nextId);
   }
+}
+
+export function getStorageMode(): 'localStorage' | 'memory' {
+  // Probe once to update mode for current environment
+  void getItem('__probe__');
+  return lastStorageMode;
+}
+
+export function isMemoryFallback(): boolean {
+  return getStorageMode() === 'memory';
 }
