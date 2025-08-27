@@ -125,7 +125,11 @@ export function JobForm() {
         message: (
           <Group gap="xs">
             <Text>{msg}</Text>
-            <Button size="xs" variant="outline" onClick={() => generateAndStart(job)}>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => generateAndStart(job)}
+            >
               Retry
             </Button>
           </Group>

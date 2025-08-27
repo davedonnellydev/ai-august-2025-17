@@ -122,7 +122,9 @@ export default function PracticeClient() {
   // Keyboard shortcuts for navigation and actions
   React.useEffect(() => {
     function isInteractiveContext(node: HTMLElement | null): boolean {
-      if (!node) return false;
+      if (!node) {
+        return false;
+      }
       const tag = node.tagName;
       if (
         tag === 'INPUT' ||
@@ -193,7 +195,6 @@ export default function PracticeClient() {
           e.preventDefault();
           e.stopPropagation();
           answerTextareaRef.current?.focus();
-          return;
         }
       }
     }
@@ -209,7 +210,8 @@ export default function PracticeClient() {
       return;
     }
     setError(null);
-    const sourceText = typeof overrideText === 'string' ? overrideText : answerText;
+    const sourceText =
+      typeof overrideText === 'string' ? overrideText : answerText;
     const trimmed = sourceText.trim();
     if (!trimmed) {
       setError('Please enter an answer first.');
@@ -258,7 +260,11 @@ export default function PracticeClient() {
         message: (
           <Group gap="xs">
             <Text>{msg}</Text>
-            <Button size="xs" variant="outline" onClick={() => handleSubmit(trimmed)}>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => handleSubmit(trimmed)}
+            >
               Retry
             </Button>
           </Group>
@@ -349,7 +355,9 @@ export default function PracticeClient() {
       setSession(updated);
       saveSession(updated);
       resetForCurrentQuestion(0, updated);
-      setLiveMessage(`New set loaded. Question 1 of ${updated.questions.length}`);
+      setLiveMessage(
+        `New set loaded. Question 1 of ${updated.questions.length}`
+      );
       questionRegionRef.current?.focus();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong';
@@ -501,7 +509,9 @@ export default function PracticeClient() {
               <Kbd>N</Kbd> new set · <Kbd>A</Kbd> focus answer
             </Text>
             {status === 'assessing' ? (
-              <Text c="dimmed" aria-live="polite">Assessing answer…</Text>
+              <Text c="dimmed" aria-live="polite">
+                Assessing answer…
+              </Text>
             ) : null}
             {error ? (
               <Text c="red" role="alert" tabIndex={-1} ref={errorRef}>
@@ -510,7 +520,9 @@ export default function PracticeClient() {
             ) : null}
             <Group justify="flex-end">
               <Button
-                onClick={() => handleSubmit(answerTextareaRef.current?.value ?? answerText)}
+                onClick={() =>
+                  handleSubmit(answerTextareaRef.current?.value ?? answerText)
+                }
                 loading={status === 'assessing'}
                 disabled={status === 'assessing' || status === 'asking'}
               >

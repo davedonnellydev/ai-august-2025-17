@@ -17,16 +17,26 @@ export default function StorageStatusBanner() {
     setVisible(isMemoryFallback());
   }, []);
 
-  if (!visible) return null;
+  if (!visible) {
+    return null;
+  }
 
   return (
-    <Alert color="yellow" variant="light" withCloseButton onClose={() => setVisible(false)}>
+    <Alert
+      color="yellow"
+      variant="light"
+      withCloseButton
+      onClose={() => setVisible(false)}
+    >
       <Group justify="space-between" align="center">
         <Text>
-          Offline mode: using in-memory storage. Your data will be lost on refresh.
+          Offline mode: using in-memory storage. Your data will be lost on
+          refresh.
         </Text>
         <Group>
-          <Text c="dimmed" fz="sm">Mode: {mode}</Text>
+          <Text c="dimmed" fz="sm">
+            Mode: {mode}
+          </Text>
           <Button size="xs" variant="outline" onClick={() => setVisible(false)}>
             Dismiss
           </Button>
@@ -35,5 +45,3 @@ export default function StorageStatusBanner() {
     </Alert>
   );
 }
-
-
