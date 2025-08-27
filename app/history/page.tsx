@@ -139,6 +139,12 @@ export default function HistoryPage() {
           <Text c="dimmed">Your past practice sessions</Text>
         </div>
 
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => router.push('/')}>
+            Home
+          </Button>
+        </Group>
+
         {sessions.length === 0 ? (
           <Text>No sessions yet. Start from the home page to create one.</Text>
         ) : null}
@@ -251,12 +257,12 @@ export default function HistoryPage() {
                           </Text>
                         ) : (
                           <List spacing="xs">
-                            {s.attempts.map((a) => {
+                            {s.attempts.map((a, idx) => {
                               const q = s.questions.find(
                                 (qq) => qq.id === a.questionId
                               );
                               return (
-                                <List.Item key={a.id}>
+                                <List.Item key={`${a.id}-${idx}`}>
                                   <Stack gap="xs">
                                     <Text fz="sm" c="dimmed">
                                       {new Date(a.startedAt).toLocaleString()} ·
