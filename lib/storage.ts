@@ -52,7 +52,20 @@ function setItem(key: string, value: string): void {
 export function loadSessions(): Session[] {
   try {
     const raw = getItem(SESSIONS_KEY);
-    return raw ? (JSON.parse(raw) as Session[]) : [];
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    // Normalize to avoid runtime errors from older/corrupted entries
+    return parsed.map((s: any) => {
+      const safeQuestions = Array.isArray(s?.questions) ? s.questions : [];
+      const safeAttempts = Array.isArray(s?.attempts) ? s.attempts : [];
+      return {
+        ...s,
+        questions: safeQuestions,
+        attempts: safeAttempts,
+      } as Session;
+    });
   } catch {
     return [];
   }

@@ -1,5 +1,6 @@
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
+import './globals.css';
 
 import React from 'react';
 import {
@@ -30,7 +31,12 @@ export default function RootLayout({ children }: { children: any }) {
       <body>
         <MantineProvider theme={theme}>
           <Notifications position="top-center" limit={3} />
-          {children}
+          <a href="#main" className="skip-link">
+            Skip to main content
+          </a>
+          <main id="main" tabIndex={-1}>
+            {children}
+          </main>
         </MantineProvider>
       </body>
     </html>

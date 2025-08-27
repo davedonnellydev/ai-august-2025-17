@@ -32,6 +32,8 @@ export function JobForm() {
   });
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [liveMessage, setLiveMessage] = React.useState('');
+  const errorRef = React.useRef<HTMLDivElement | null>(null);
 
   const handleChange = <K extends keyof FormState>(
     key: K,
@@ -46,10 +48,12 @@ export function JobForm() {
 
     if (!form.role.trim()) {
       setError('Please enter a role.');
+      setLiveMessage('Please enter a role.');
       return;
     }
     if (!form.interviewType) {
       setError('Please select an interview type.');
+      setLiveMessage('Please select an interview type.');
       return;
     }
 
@@ -61,6 +65,7 @@ export function JobForm() {
     };
 
     setSubmitting(true);
+    setLiveMessage('Generating questions…');
     try {
       const res = await fetch('/api/generate-questions', {
         method: 'POST',
@@ -88,6 +93,9 @@ export function JobForm() {
       router.push('/practice');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
+      setLiveMessage(
+        err instanceof Error ? err.message : 'Something went wrong'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -103,6 +111,9 @@ export function JobForm() {
       aria-busy={submitting}
     >
       <Stack gap="md">
+        <div aria-live="polite" aria-atomic="true" className="sr-only">
+          {liveMessage}
+        </div>
         <Text fw={600} fz="lg">
           Start a new practice session
         </Text>
@@ -162,13 +173,13 @@ export function JobForm() {
         />
 
         {error ? (
-          <Text c="red" role="alert">
+          <Text c="red" role="alert" tabIndex={-1} ref={errorRef}>
             {error}
           </Text>
         ) : null}
 
         <Group justify="space-between" align="center">
-          <div aria-live="polite">
+          <div aria-live="polite" aria-atomic="true">
             {submitting ? <Text c="dimmed">Generating questions…</Text> : null}
           </div>
           <Button type="submit" loading={submitting} disabled={submitting}>

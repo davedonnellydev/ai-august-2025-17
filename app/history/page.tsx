@@ -178,6 +178,8 @@ export default function HistoryPage() {
         </Group>
 
         {sessions.map((s) => {
+          const questions = Array.isArray(s.questions) ? s.questions : [];
+          const attempts = Array.isArray(s.attempts) ? s.attempts : [];
           const date = new Date(s.createdAt);
           const subtitle = [s.job.role, s.job.interviewType, s.job.seniority]
             .filter(Boolean)
@@ -200,10 +202,8 @@ export default function HistoryPage() {
                     </div>
                   </Group>
                   <Group>
-                    <Badge variant="light">
-                      {s.questions.length} questions
-                    </Badge>
-                    <Badge variant="light">{s.attempts.length} attempts</Badge>
+                    <Badge variant="light">{questions.length} questions</Badge>
+                    <Badge variant="light">{attempts.length} attempts</Badge>
                     <Button
                       size="xs"
                       variant="default"
@@ -231,7 +231,7 @@ export default function HistoryPage() {
                       <div>
                         <Text fw={600}>Questions</Text>
                         <List spacing="xs">
-                          {s.questions.map((q, idx) => (
+                          {questions.map((q, idx) => (
                             <List.Item key={q.id}>
                               <Group justify="space-between" align="center">
                                 <Text>
@@ -251,14 +251,14 @@ export default function HistoryPage() {
                       </div>
                       <div>
                         <Text fw={600}>Attempts</Text>
-                        {s.attempts.length === 0 ? (
+                        {attempts.length === 0 ? (
                           <Text c="dimmed" fz="sm">
                             No attempts saved yet.
                           </Text>
                         ) : (
                           <List spacing="xs">
-                            {s.attempts.map((a, idx) => {
-                              const q = s.questions.find(
+                            {attempts.map((a, idx) => {
+                              const q = questions.find(
                                 (qq) => qq.id === a.questionId
                               );
                               return (
