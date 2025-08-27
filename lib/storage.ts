@@ -80,3 +80,14 @@ export function getLastSessionId(): string | null {
     return null;
   }
 }
+
+export function removeSession(sessionId: string): void {
+  const all = loadSessions();
+  const filtered = all.filter((s) => s.id !== sessionId);
+  setItem(SESSIONS_KEY, JSON.stringify(filtered));
+  const last = getLastSessionId();
+  if (last === sessionId) {
+    const nextId = filtered.length > 0 ? filtered[0].id : '';
+    setItem(LAST_SESSION_ID_KEY, nextId);
+  }
+}
