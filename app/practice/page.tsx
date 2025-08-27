@@ -1,5 +1,4 @@
-import React from 'react';
-import { Suspense } from 'react';
+import React, { Suspense } from 'react';
 import PracticeClient from './PracticeClient';
 
 export default function PracticePage() {

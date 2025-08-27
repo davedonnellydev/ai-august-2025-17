@@ -42,7 +42,10 @@ export default function PracticeClient() {
     }
     const qParam = searchParams?.get('questionId');
     const startIndex = qParam
-      ? Math.max(0, found.questions.findIndex((q) => q.id === qParam))
+      ? Math.max(
+          0,
+          found.questions.findIndex((q) => q.id === qParam)
+        )
       : 0;
     const index = startIndex === -1 ? 0 : startIndex;
     setSession(found);
@@ -358,5 +361,3 @@ export default function PracticeClient() {
     </Container>
   );
 }
-
-
