@@ -3,7 +3,7 @@ import {
   apiCache,
   generateCacheKey,
   retryRequest,
-} from '../lib/utils/api-helpers';
+} from '@/lib/utils/api-helpers';
 
 interface UseApiOptions {
   endpoint: string;

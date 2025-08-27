@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { MODEL } from '@/app/config/constants';
-import { InputValidator, ServerRateLimiter } from '@/app/lib/utils/api-helpers';
+import { MODEL, MAX_REQUESTS, STORAGE_WINDOW_MS } from '@/app/config/constants';
+import {
+  InputValidator,
+  ServerRateLimiter,
+  withRateLimitHeaders,
+} from '@/lib/utils/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,9 +17,23 @@ export async function POST(request: NextRequest) {
 
     // Server-side rate limiting
     if (!ServerRateLimiter.checkLimit(ip)) {
+      const remaining = ServerRateLimiter.getRemaining(ip);
+      const init = withRateLimitHeaders(
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil(STORAGE_WINDOW_MS / 1000)),
+          },
+        },
+        {
+          remaining,
+          limit: MAX_REQUESTS,
+          resetMs: STORAGE_WINDOW_MS,
+        }
+      );
       return NextResponse.json(
         { error: 'Rate limit exceeded. Please try again later.' },
-        { status: 429 }
+        init
       );
     }
 
@@ -77,11 +95,20 @@ export async function POST(request: NextRequest) {
       throw new Error(`Responses API error: ${response.status}`);
     }
 
-    return NextResponse.json({
-      response: response.output_text || 'Response recieved',
-      originalInput: input,
-      remainingRequests: ServerRateLimiter.getRemaining(ip),
+    const remaining = ServerRateLimiter.getRemaining(ip);
+    const init = withRateLimitHeaders(undefined, {
+      remaining,
+      limit: MAX_REQUESTS,
+      resetMs: STORAGE_WINDOW_MS,
     });
+    return NextResponse.json(
+      {
+        response: response.output_text || 'Response recieved',
+        originalInput: input,
+        remainingRequests: remaining,
+      },
+      init
+    );
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'OpenAI failed';

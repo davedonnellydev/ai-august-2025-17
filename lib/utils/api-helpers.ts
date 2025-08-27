@@ -185,8 +185,18 @@ interface RateLimitEntry {
 
 export class ServerRateLimiter {
   private static store = new Map<string, RateLimitEntry>();
+  private static lastCleanup = 0;
+
+  static getConfig() {
+    const max = Number(process.env.SERVER_MAX_REQUESTS || MAX_REQUESTS);
+    const windowMs = Number(
+      process.env.SERVER_STORAGE_WINDOW_MS || STORAGE_WINDOW_MS
+    );
+    return { max, windowMs };
+  }
 
   static checkLimit(ip: string): boolean {
+    const { max, windowMs } = this.getConfig();
     const now = Date.now();
     const entry = this.store.get(ip);
 
@@ -194,26 +204,34 @@ export class ServerRateLimiter {
       // First request or window expired
       this.store.set(ip, {
         count: 1,
-        resetTime: now + STORAGE_WINDOW_MS,
+        resetTime: now + windowMs,
       });
       return true;
     }
 
-    if (entry.count >= MAX_REQUESTS) {
+    if (entry.count >= max) {
       return false; // Rate limit exceeded
     }
 
     // Increment count
     entry.count++;
+
+    // Opportunistic cleanup to avoid global intervals in edge runtimes
+    if (now - this.lastCleanup > 5 * 60 * 1000) {
+      this.cleanup();
+      this.lastCleanup = now;
+    }
+
     return true;
   }
 
   static getRemaining(ip: string): number {
+    const { max } = this.getConfig();
     const entry = this.store.get(ip);
     if (!entry || Date.now() > entry.resetTime) {
-      return MAX_REQUESTS;
+      return max;
     }
-    return Math.max(0, MAX_REQUESTS - entry.count);
+    return Math.max(0, max - entry.count);
   }
 
   // Clean up old entries periodically
@@ -227,42 +245,62 @@ export class ServerRateLimiter {
   }
 }
 
-// Clean up every 5 minutes
-setInterval(() => ServerRateLimiter.cleanup(), 5 * 60 * 1000);
+// Helper: attach standard rate limit headers to a NextResponse init
+export function withRateLimitHeaders(
+  init: ResponseInit | undefined,
+  opts: {
+    remaining: number;
+    limit: number;
+    resetMs: number;
+  }
+): ResponseInit {
+  const headers = new Headers(init?.headers || {});
+  headers.set('X-RateLimit-Remaining', String(opts.remaining));
+  headers.set('X-RateLimit-Limit', String(opts.limit));
+  headers.set('X-RateLimit-Reset', String(Math.ceil(opts.resetMs / 1000))); // seconds
+  return { ...init, headers };
+}
 
 // Client-side Rate Limiter
 export class ClientRateLimiter {
   static checkLimit(): boolean {
-    const now = Date.now();
-    const requests = JSON.parse(
-      localStorage.getItem('translation_requests') || '[]'
-    );
+    try {
+      const now = Date.now();
+      const raw = localStorage.getItem('aicoach_requests') || '[]';
+      const requests = JSON.parse(raw);
 
-    // Remove old requests outside the window
-    const validRequests = requests.filter(
-      (timestamp: number) => now - timestamp < STORAGE_WINDOW_MS
-    );
+      // Remove old requests outside the window
+      const validRequests = requests.filter(
+        (timestamp: number) => now - timestamp < STORAGE_WINDOW_MS
+      );
 
-    if (validRequests.length >= MAX_REQUESTS) {
-      return false; // Rate limit exceeded
+      if (validRequests.length >= MAX_REQUESTS) {
+        return false; // Rate limit exceeded
+      }
+
+      // Add current request
+      validRequests.push(now);
+      localStorage.setItem('aicoach_requests', JSON.stringify(validRequests));
+
+      return true;
+    } catch {
+      // If storage is unavailable or JSON parsing fails, fail open to avoid blocking UX
+      return true;
     }
-
-    // Add current request
-    validRequests.push(now);
-    localStorage.setItem('translation_requests', JSON.stringify(validRequests));
-
-    return true;
   }
 
   static getRemainingRequests(): number {
-    const now = Date.now();
-    const requests = JSON.parse(
-      localStorage.getItem('translation_requests') || '[]'
-    );
-    const validRequests = requests.filter(
-      (timestamp: number) => now - timestamp < STORAGE_WINDOW_MS
-    );
-
-    return Math.max(0, MAX_REQUESTS - validRequests.length);
+    try {
+      const now = Date.now();
+      const raw = localStorage.getItem('aicoach_requests') || '[]';
+      const requests = JSON.parse(raw);
+      const validRequests = requests.filter(
+        (timestamp: number) => now - timestamp < STORAGE_WINDOW_MS
+      );
+      return Math.max(0, MAX_REQUESTS - validRequests.length);
+    } catch {
+      // If storage unavailable, return full allowance
+      return MAX_REQUESTS;
+    }
   }
 }

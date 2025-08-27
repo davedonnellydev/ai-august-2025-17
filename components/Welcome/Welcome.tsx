@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button, Text, TextInput, Title } from '@mantine/core';
-import { ClientRateLimiter } from '@/app/lib/utils/api-helpers';
+import { ClientRateLimiter } from '@/lib/utils/api-helpers';
 import classes from './Welcome.module.css';
 
 export function Welcome() {
