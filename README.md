@@ -2,7 +2,7 @@
 
 ![Last Commit](https://img.shields.io/github/last-commit/davedonnellydev/ai-august-2025-17)
 
-**📆 Date**: 17/Aug/2025  
+**📆 Date**: 27/Aug/2025  
 **🎯 Project Objective**: User answers typical interview Qs, AI provides feedback.  
 **🚀 Features**: “Start Practice” button: App asks a random or chosen interview question; User types (or optionally records) their answer; AI analyzes the answer and gives tailored feedback, including strengths, improvement tips, and example responses; Option to “try again” or get a new question; Track progress or history (bonus)  
 **🛠️ Tech used**: Next.js, TypeScript, OpenAI Speech to Text & Responses APIs  
@@ -24,7 +24,7 @@ This project has been built as part of my AI August App-A-Day Challenge. You can
 
 ## 🧪 Testing
 
-![CI](https://github.com/davedonnellydev/ai-august-2025-XX/actions/workflows/npm_test.yml/badge.svg)  
+![CI](https://github.com/davedonnellydev/ai-august-2025-17/actions/workflows/npm_test.yml/badge.svg)  
 _Note: Test suite runs automatically with each push/merge._
 
 ## Quick Start
@@ -32,8 +32,8 @@ _Note: Test suite runs automatically with each push/merge._
 1. **Clone and install:**
 
    ```bash
-   git clone https://github.com/davedonnellydev/ai-august-2025-XX.git
-   cd ai-august-2025-XX
+   git clone https://github.com/davedonnellydev/ai-august-2025-17.git
+   cd ai-august-2025-17
    npm install
    ```
 
@@ -105,5 +105,5 @@ import { Component } from '@/components/Component'; // instead of '../../../comp
 
 ## 📜 License
 
-![GitHub License](https://img.shields.io/github/license/davedonnellydev/ai-august-2025-XX)  
+![GitHub License](https://img.shields.io/github/license/davedonnellydev/ai-august-2025-17)  
 This project is licensed under the MIT License.
