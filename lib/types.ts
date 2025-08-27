@@ -18,11 +18,15 @@ export interface JobConfig {
 
 export type Difficulty = 1 | 2 | 3; // 1 easy
 
+export interface QuestionSet {
+  questions: Question[];
+}
+
 export interface Question {
   id: string; // uuid
   text: string;
-  category?: string; // e.g., "STAR", "algorithms", "product sense"
-  difficulty?: Difficulty;
+  category?: string | null; // e.g., "STAR", "algorithms", "product sense"
+  difficulty?: Difficulty | null;
 }
 
 export interface Feedback {
@@ -31,7 +35,7 @@ export interface Feedback {
   improvements: string[]; // actionable
   tips: string[]; // short, tactical
   exampleAnswer: string; // compact model answer
-  score?: number; // 0–100 for quick progress feel
+  score?: number | null; // 0–100 for quick progress feel
 }
 
 export interface Attempt {
